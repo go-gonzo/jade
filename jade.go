@@ -14,9 +14,15 @@ import (
 	"github.com/omeid/gonzo"
 )
 
+type Delims struct {
+	Right string
+	Left  string
+}
+
 type Options struct {
 	FuncMap map[string]interface{}
 	Data    interface{}
+	Delims  Delims
 }
 
 func Compile(opt Options) gonzo.Stage {
@@ -42,15 +48,24 @@ func Compile(opt Options) gonzo.Stage {
 				}
 
 				content := new(bytes.Buffer)
-				t, err := template.New("html").Parse(html)
-				if err != nil {
-					return err
-				}
+				t := template.New("html")
 
 				if opt.FuncMap != nil {
 					t = t.Funcs(opt.FuncMap)
 				}
-				t.Execute(content, opt.Data)
+				if opt.Delims.Right != "" && opt.Delims.Left != "" {
+					t = t.Delims(opt.Delims.Left, opt.Delims.Right)
+				}
+
+				t, err = t.Parse(html)
+				if err != nil {
+					return err
+				}
+
+				err = t.Execute(content, opt.Data)
+				if err != nil {
+					return err
+				}
 
 				file = gonzo.NewFile(ioutil.NopCloser(content), file.FileInfo())
 				file.FileInfo().SetSize(int64(content.Len()))
